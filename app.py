@@ -4,7 +4,6 @@ from config import Config, load_config
 from aiogram import Bot, Dispatcher
 from handlers import router
 from aiogram.fsm.storage.memory import MemoryStorage
-from keyboards.main_menu import set_main_menu
 from aiogram.client.bot import DefaultBotProperties
 
 # Инициализируем логгер
