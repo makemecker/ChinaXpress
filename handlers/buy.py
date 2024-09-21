@@ -16,7 +16,6 @@ buy_router: Router = Router()
 @buy_router.callback_query(F.data.in_(['buy', 'yes_more_product']))
 async def process_buy(callback: CallbackQuery, state: FSMContext, admins: list, bot: Bot):
     markup = create_inline_kb('yes_url', 'no_url')
-    await state.update_data(status='Покупка')
     await callback.message.answer(LEXICON['buy_type'], reply_markup=markup)
 
     if callback.data == 'yes_more_product':
@@ -29,6 +28,7 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, admins: list, 
                 await bot.send_photo(admin_id, data['photo'])
 
     await state.clear()
+    await state.update_data(status='Покупка')
     await callback.answer()
 
 

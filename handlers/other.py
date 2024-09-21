@@ -12,6 +12,7 @@ other_router: Router = Router()
 @other_router.callback_query(F.data == 'help')
 async def help_command(update: Message | CallbackQuery):
     if isinstance(update, CallbackQuery):
+        await update.answer()
         update = update.message
     await update.answer(LEXICON['/help'])
 

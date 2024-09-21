@@ -28,9 +28,6 @@ async def main() -> None:
     dp: Dispatcher = Dispatcher(admins=config.tg_bot.admins, storage=storage, threshold=config.delivery_threshold,
                                 database=config.database)
 
-    # Настраиваем главное меню бота
-    await set_main_menu(bot)
-
     # Регистрируем роутеры в диспетчере
     dp.include_router(router)
 

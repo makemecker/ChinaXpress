@@ -17,21 +17,70 @@ pay_router: Router = Router()
 async def pay_url_request(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await state.update_data(status='Оплата')
-    await callback.message.answer(LEXICON['url_request'])
-    await state.set_state(PayState.check_url)
+    markup = create_inline_kb('alipay', 'wechat_pay', 'other_bank')
+    await callback.message.answer(LEXICON['about_pay'], reply_markup=markup)
     await callback.answer()
 
 
-@pay_router.message(StateFilter(PayState.check_url))
-async def pay_count_request(message: Message, state: FSMContext):
-    await state.update_data(url=message.text)
-    await message.answer(LEXICON['count_request'])
-    await state.set_state(PayState.check_count)
+@pay_router.callback_query(F.data.in_(['alipay', 'wechat_pay']))
+async def alipay_or_wechat_pay(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(bank='Alipay' if callback.data == 'alipay' else 'wechat_pay')
+    await callback.message.answer(LEXICON['qr_code'])
+    await state.set_state(PayState.wait_qr_code)
+    await callback.answer()
 
 
-@pay_router.message(StateFilter(PayState.check_count))
-async def process_count(message: Message, state: FSMContext):
-    await state.update_data(count=message.text)
+@pay_router.callback_query(F.data == 'other_bank')
+async def other_bank(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(bank='Другой китайский банк')
+    await callback.message.answer(LEXICON['other_bank'])
+    await state.set_state(PayState.wait_requisites)
+    await callback.answer()
+
+
+@pay_router.message(StateFilter(PayState.wait_requisites))
+async def qr_code(message: Message, state: FSMContext):
+    # Проверяем, если ли в сообщении фотографии
+    if message.photo:
+        # Получаем максимальное качество фото (последний элемент в списке)
+        photo = message.photo[-1].file_id
+
+        # Получаем текущий список фотографий из состояния
+        state_data = await state.get_data()
+        photos = state_data.get('photo', [])
+
+        # Добавляем новый файл в список фотографий
+        photos.append(photo)
+
+        # Обновляем данные в состоянии
+        await state.update_data(photo=photos)
+        await state.update_data(is_photo='Имеются фотографии')
+    # Если фотографии нет, сохраняем текстовые реквизиты
+    else:
+        await state.update_data(requisites=message.text)
+
+    # Переход к следующему шагу
+    await message.answer(LEXICON['amount'])
+    await state.set_state(PayState.wait_amount)
+
+
+@pay_router.message(StateFilter(PayState.wait_qr_code))
+async def qr_code(message: Message, state: FSMContext):
+    if message.photo:
+        # Получаем максимальное качество фото (последний элемент в списке)
+        photo = message.photo[-1]
+        # Сохраняем file_id фото в data состояния
+        await state.update_data(is_photo='Имеется фото')
+        await state.update_data(photo=photo.file_id)
+        await message.answer(LEXICON['amount'])
+        await state.set_state(PayState.wait_amount)
+    else:
+        await message.answer(LEXICON['need_photo'])
+
+
+@pay_router.message(StateFilter(PayState.wait_amount))
+async def amount(message: Message, state: FSMContext):
+    await state.update_data(amount=message.text)
     markup = create_inline_kb('yes_pay_description', 'no_pay_description')
     await message.answer(LEXICON['description_pay_request'], reply_markup=markup)
 
