@@ -75,14 +75,13 @@ async def parse_dimensions(s: str) -> tuple:
 
 
 async def calc_price(data: dict[str, str], database: DatabaseManager) -> tuple[float, float]:
-
     volume = data.get('volume', False)
     if not volume:
         volume = 1
         for dim in ['length', 'width', 'height']:
             volume *= float(data[dim]) * 0.01
-
     weight = float(data['weight'])
+    volume = float(volume)
     density = weight / volume
 
     query = '''
@@ -92,8 +91,6 @@ async def calc_price(data: dict[str, str], database: DatabaseManager) -> tuple[f
     '''
     # Выполняем запрос, передавая значение плотности
     car_price, train_price = database.fetchone(query, (density,))
-
     car_price *= volume if density <= 100 else weight
     train_price *= volume if density <= 100 else weight
-
     return car_price, train_price

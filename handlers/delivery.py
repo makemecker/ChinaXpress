@@ -107,7 +107,6 @@ async def process_box_count(message: Message, state: FSMContext, database: Datab
 
         await state.update_data(count=message.text)
         car_price, train_price = await calc_price(await state.get_data(), database)
-        print(2)
         markup = create_inline_kb('confirm_car_delivery', 'confirm_train_delivery', 'deny_delivery')
         await message.answer(LEXICON['delivery_price'].format(car_price, train_price), reply_markup=markup)
         await state.update_data(car_price=car_price)
