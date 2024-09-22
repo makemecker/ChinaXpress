@@ -86,6 +86,7 @@ ORDER: dict[str, str] = {
     'amount': 'Сумма к оплате',
     'requisites': 'Реквизиты',
     'delivery_type': 'Тип доставки',
+    'weight': 'Вес коробки',
 }
 
 LEXICON_COMMANDS: dict[str, str] = {

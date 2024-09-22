@@ -91,6 +91,11 @@ async def calc_price(data: dict[str, str], database: DatabaseManager) -> tuple[f
     '''
     # Выполняем запрос, передавая значение плотности
     car_price, train_price = database.fetchone(query, (density,))
+
     car_price *= volume if density <= 100 else weight
     train_price *= volume if density <= 100 else weight
+
+    car_price *= float(data['count'])
+    train_price *= float(data['count'])
+
     return car_price, train_price
