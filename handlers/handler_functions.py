@@ -1,3 +1,5 @@
+from typing import Any
+
 from database import DatabaseManager
 from keyboards.kb_generator import create_inline_kb
 from aiogram.fsm.context import FSMContext
@@ -90,12 +92,24 @@ async def calc_price(data: dict[str, str], database: DatabaseManager) -> tuple[f
     WHERE ? BETWEEN density_min AND density_max;
     '''
     # Выполняем запрос, передавая значение плотности
+    print(density)
     car_price, train_price = database.fetchone(query, (density,))
 
     car_price *= volume if density <= 100 else weight
     train_price *= volume if density <= 100 else weight
 
-    car_price *= float(data['count'])
-    train_price *= float(data['count'])
+    if "length" in data:
+        car_price *= float(data['count'])
+        train_price *= float(data['count'])
 
-    return car_price, train_price
+    return round(car_price, 2), round(train_price, 2)
+
+
+async def process_price(data: dict[str, Any], database: DatabaseManager, message: Message) -> dict[str, str]:
+    car_price, train_price = await calc_price(data, database)
+    markup = create_inline_kb('confirm_car_delivery', 'confirm_train_delivery', 'deny_delivery')
+    await message.answer(LEXICON['delivery_price'].format(car_price, train_price), reply_markup=markup)
+    data["car_price"] = car_price
+    data["train_price"] = train_price
+
+    return data

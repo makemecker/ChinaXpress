@@ -5,7 +5,7 @@ from aiogram import Router
 
 from database import DatabaseManager
 from handlers.handler_functions import is_valid_number, handle_complete_pay, calc_price, is_valid_dimensions, \
-    parse_dimensions
+    parse_dimensions, process_price
 from lexicon import LEXICON
 from keyboards.kb_generator import create_inline_kb
 from aiogram.fsm.context import FSMContext
@@ -90,13 +90,17 @@ async def process_volume(message: Message, state: FSMContext):
 
 
 @delivery_router.message(StateFilter(DeliveryState.check_weight))
-async def process_weight(message: Message, state: FSMContext):
+async def process_weight(message: Message, state: FSMContext, database: DatabaseManager):
     message_text = message.text
     if await is_valid_number(message_text):
         await state.update_data(weight=message_text)
 
-        await state.set_state(DeliveryState.check_box_count)
-        await message.answer(LEXICON['box_count_request'])
+        data = await state.get_data()
+        if "volume" in data:
+            await state.update_data(await process_price(await state.get_data(), database, message))
+        else:
+            await state.set_state(DeliveryState.check_box_count)
+            await message.answer(LEXICON['box_count_request'])
     else:
         await message.answer(LEXICON['need_number'])
 
@@ -106,11 +110,7 @@ async def process_box_count(message: Message, state: FSMContext, database: Datab
     if await is_valid_number(message.text):
 
         await state.update_data(count=message.text)
-        car_price, train_price = await calc_price(await state.get_data(), database)
-        markup = create_inline_kb('confirm_car_delivery', 'confirm_train_delivery', 'deny_delivery')
-        await message.answer(LEXICON['delivery_price'].format(car_price, train_price), reply_markup=markup)
-        await state.update_data(car_price=car_price)
-        await state.update_data(train_price=train_price)
+        await state.update_data(await process_price(await state.get_data(), database, message))
     else:
         await message.answer(LEXICON['need_number'])
 
