@@ -5,7 +5,7 @@ from aiogram import Router
 
 from database import DatabaseManager
 from handlers.handler_functions import is_valid_number, handle_complete_pay, calc_price, is_valid_dimensions, \
-    parse_dimensions, process_price
+    parse_dimensions, process_price, update_price_and_state
 from lexicon import LEXICON
 from keyboards.kb_generator import create_inline_kb
 from aiogram.fsm.context import FSMContext
@@ -97,7 +97,7 @@ async def process_weight(message: Message, state: FSMContext, database: Database
 
         data = await state.get_data()
         if "volume" in data:
-            await state.update_data(await process_price(await state.get_data(), database, message))
+            await update_price_and_state(data, state, database, message)
         else:
             await state.set_state(DeliveryState.check_box_count)
             await message.answer(LEXICON['box_count_request'])
@@ -108,9 +108,8 @@ async def process_weight(message: Message, state: FSMContext, database: Database
 @delivery_router.message(StateFilter(DeliveryState.check_box_count))
 async def process_box_count(message: Message, state: FSMContext, database: DatabaseManager):
     if await is_valid_number(message.text):
-
         await state.update_data(count=message.text)
-        await state.update_data(await process_price(await state.get_data(), database, message))
+        await update_price_and_state(await state.get_data(), state, database, message)
     else:
         await message.answer(LEXICON['need_number'])
 

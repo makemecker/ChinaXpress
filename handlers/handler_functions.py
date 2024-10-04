@@ -84,16 +84,22 @@ async def calc_price(data: dict[str, str], database: DatabaseManager) -> tuple[f
             volume *= float(data[dim]) * 0.01
     weight = float(data['weight'])
     volume = float(volume)
-    density = weight / volume
+    density = round(weight / volume if volume != 0 else 0)
 
     query = '''
     SELECT car, train
     FROM delivery_price
-    WHERE ? BETWEEN density_min AND density_max;
+    WHERE density_min <= ? AND density_max >= ?;
     '''
+
     # Выполняем запрос, передавая значение плотности
-    print(density)
-    car_price, train_price = database.fetchone(query, (density,))
+    result = database.fetchone(query, (density, density))
+
+    if result is None:
+        logging.warning(f"No pricing information found for density {density}.")
+        return 0, 0
+
+    car_price, train_price = result
 
     car_price *= volume if density <= 100 else weight
     train_price *= volume if density <= 100 else weight
@@ -105,11 +111,23 @@ async def calc_price(data: dict[str, str], database: DatabaseManager) -> tuple[f
     return round(car_price, 2), round(train_price, 2)
 
 
-async def process_price(data: dict[str, Any], database: DatabaseManager, message: Message) -> dict[str, str]:
+async def process_price(data: dict[str, Any], database: DatabaseManager, message: Message) -> dict[str, str] | None:
     car_price, train_price = await calc_price(data, database)
-    markup = create_inline_kb('confirm_car_delivery', 'confirm_train_delivery', 'deny_delivery')
-    await message.answer(LEXICON['delivery_price'].format(car_price, train_price), reply_markup=markup)
-    data["car_price"] = car_price
-    data["train_price"] = train_price
+    if car_price:
+        markup = create_inline_kb('confirm_car_delivery', 'confirm_train_delivery', 'deny_delivery')
+        await message.answer(LEXICON['delivery_price'].format(car_price, train_price), reply_markup=markup)
+        data["car_price"] = car_price
+        data["train_price"] = train_price
+    else:
+        return None
 
     return data
+
+
+async def update_price_and_state(data: dict, state: FSMContext, database: DatabaseManager, message: Message):
+    price_data = await process_price(data, database, message)
+    if price_data:
+        await state.update_data(price_data)
+    else:
+        await message.answer(LEXICON['cant_calc_price'])
+        await state.clear()
